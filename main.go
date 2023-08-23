@@ -71,10 +71,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	activePlayer, err := getActivePlayerName(db)
-	if err != nil {
-		log.Fatal(err)
-	}
 	tgbot, err := tele.NewBot(tele.Settings{
 		Token: os.Getenv("TELEGRAM_TOKEN"),
 	})
@@ -82,6 +78,8 @@ func main() {
 		log.Fatal(err)
 	}
 	chat := tele.ChatID(*chatID)
+
+	activePlayer := ""
 
 	for range time.Tick(time.Second) {
 		newActivePlayer, err := getActivePlayerName(db)
@@ -113,6 +111,7 @@ func main() {
 			if err != nil {
 				log.Printf("Message send failed; %v", err)
 			}
+			activePlayer = newActivePlayer
 		}
 
 	}
