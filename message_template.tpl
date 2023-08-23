@@ -1,0 +1,3 @@
+{{.Name}}, твой ход!
+
+@{{.TelegramLogin}}
