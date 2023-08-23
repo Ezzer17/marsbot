@@ -2,18 +2,17 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -25,29 +24,39 @@ var loginsConfig = map[string]string{
 	"егор":  "ivanusernam",
 }
 
-func getActivePlayerName(db *sql.DB) (string, error) {
+type Poller struct {
+	client *http.Client
+	link   string
+}
+
+func (p *Poller) GetActivePlayerName() (string, error) {
 	type Player struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID       string `json:"id"`
+		IsActive bool   `json:"isActive"`
+		Name     string `json:"name"`
 	}
 	type Game struct {
 		ActivePlayer string   `json:"activePlayer"`
 		Players      []Player `json:"players"`
 	}
+	res, err := p.client.Get(p.link)
 
-	row := db.QueryRow("select game from games order by created_time limit 1")
-	var gameDesc string
-	err := row.Scan(&gameDesc)
 	if err != nil {
 		return "", err
 	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get active player name: %s", res.Status)
+	}
+
 	var game Game
-	if err := json.Unmarshal([]byte(gameDesc), &game); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&game); err != nil {
 		return "", err
 	}
-	activePlayerID := game.ActivePlayer
+
 	for _, player := range game.Players {
-		if player.ID == activePlayerID {
+		if player.IsActive {
 			return player.Name, nil
 		}
 	}
@@ -56,15 +65,14 @@ func getActivePlayerName(db *sql.DB) (string, error) {
 }
 func main() {
 
-	database := flag.String("database", "db.db", "database file")
+	url := flag.String("url", "", "player api url")
 	chatID := flag.Int("chat", 0, "telegram chat id")
 	flag.Parse()
 
-	db, err := sql.Open("sqlite3", *database)
-	if err != nil {
-		log.Fatal(err)
+	p := Poller{
+		client: &http.Client{Timeout: 10 * time.Second},
+		link:   *url,
 	}
-	defer db.Close()
 
 	messageTemplate, err := template.New("").Parse(messageTemplateString)
 	if err != nil {
@@ -82,11 +90,11 @@ func main() {
 	activePlayer := ""
 
 	for range time.Tick(time.Second) {
-		newActivePlayer, err := getActivePlayerName(db)
+		newActivePlayer, err := p.GetActivePlayerName()
 		if err != nil {
 			log.Fatal(err)
 		}
-		if newActivePlayer != activePlayer {
+		if newActivePlayer != activePlayer && activePlayer != "" {
 			log.Printf("Active player changed to %s", newActivePlayer)
 			messageTextBuf := bytes.NewBuffer([]byte{})
 			login, ok := loginsConfig[strings.TrimSpace(strings.ToLower(newActivePlayer))]
