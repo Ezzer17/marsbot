@@ -56,8 +56,9 @@ func getActivePlayerName(db *sql.DB) (string, error) {
 }
 func main() {
 
-	database := flag.String("database", "", "database file")
+	database := flag.String("database", "db.db", "database file")
 	chatID := flag.Int("chat", 0, "telegram chat id")
+	flag.Parse()
 
 	db, err := sql.Open("sqlite3", *database)
 	if err != nil {
