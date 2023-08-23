@@ -35,7 +35,7 @@ func getActivePlayerName(db *sql.DB) (string, error) {
 		Players      []Player `json:"players"`
 	}
 
-	row := db.QueryRow("select game from games order by created_time desc limit 1")
+	row := db.QueryRow("select game from games order by created_time limit 1")
 	var gameDesc string
 	err := row.Scan(&gameDesc)
 	if err != nil {
