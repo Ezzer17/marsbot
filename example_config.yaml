@@ -1,0 +1,6 @@
+token: <token>
+chat_id: 0
+game_url: https://rebalanced-mars.herokuapp.com/api/player?id=<player_id>
+login_config:
+  <game_name>: <login>
+

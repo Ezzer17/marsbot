@@ -3,3 +3,5 @@ module github.com/ezzer17/marsbot
 go 1.19
 
 require gopkg.in/telebot.v3 v3.1.3
+
+require gopkg.in/yaml.v3 v3.0.1 // indirect

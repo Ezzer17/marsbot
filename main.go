@@ -14,19 +14,22 @@ import (
 	"time"
 
 	tele "gopkg.in/telebot.v3"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed message_template.tpl
 var messageTemplateString string
 
-var loginsConfig = map[string]string{
-	"алиса": "alice8080",
-	"егор":  "ivanusernam",
+type Poller struct {
+	client  *http.Client
+	gameURL string
 }
 
-type Poller struct {
-	client *http.Client
-	link   string
+type Config struct {
+	Token       string
+	ChatID      int64
+	GameURL     string
+	LoginConfig map[string]string
 }
 
 func (p *Poller) GetActivePlayerName() (string, error) {
@@ -39,7 +42,7 @@ func (p *Poller) GetActivePlayerName() (string, error) {
 		ActivePlayer string   `json:"activePlayer"`
 		Players      []Player `json:"players"`
 	}
-	res, err := p.client.Get(p.link)
+	res, err := p.client.Get(p.gameURL)
 
 	if err != nil {
 		return "", err
@@ -65,13 +68,25 @@ func (p *Poller) GetActivePlayerName() (string, error) {
 }
 func main() {
 
-	url := flag.String("url", "", "player api url")
-	chatID := flag.Int("chat", 0, "telegram chat id")
+	configFile := flag.String("config", "config.yaml", "config file")
 	flag.Parse()
 
+	yamlFile, err := os.Open(*configFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer yamlFile.Close()
+	var config Config
+	buf := bytes.NewBuffer([]byte{})
+	buf.ReadFrom(yamlFile)
+	err = yaml.Unmarshal(buf.Bytes(), &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	p := Poller{
-		client: &http.Client{Timeout: 10 * time.Second},
-		link:   *url,
+		client:  &http.Client{Timeout: 10 * time.Second},
+		gameURL: config.GameURL,
 	}
 
 	messageTemplate, err := template.New("").Parse(messageTemplateString)
@@ -80,12 +95,12 @@ func main() {
 	}
 
 	tgbot, err := tele.NewBot(tele.Settings{
-		Token: os.Getenv("TELEGRAM_TOKEN"),
+		Token: config.Token,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	chat := tele.ChatID(*chatID)
+	chat := tele.ChatID(config.ChatID)
 
 	activePlayer := ""
 
@@ -97,7 +112,7 @@ func main() {
 		if newActivePlayer != activePlayer && activePlayer != "" {
 			log.Printf("Active player changed to %s", newActivePlayer)
 			messageTextBuf := bytes.NewBuffer([]byte{})
-			login, ok := loginsConfig[strings.TrimSpace(strings.ToLower(newActivePlayer))]
+			login, ok := config.LoginConfig[strings.TrimSpace(strings.ToLower(newActivePlayer))]
 			if !ok {
 				log.Printf("Unknown name %s", newActivePlayer)
 			}
