@@ -26,10 +26,10 @@ type Poller struct {
 }
 
 type Config struct {
-	Token       string
-	ChatID      int64
-	GameURL     string
-	LoginConfig map[string]string
+	Token       string            `yaml:"token"`
+	ChatID      int64             `yaml:"chat_id"`
+	GameURL     string            `yaml:"game_url"`
+	LoginConfig map[string]string `yaml:"login_config"`
 }
 
 func (p *Poller) GetActivePlayerName() (string, error) {
