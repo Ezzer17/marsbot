@@ -107,9 +107,9 @@ func main() {
 	for range time.Tick(time.Second) {
 		newActivePlayer, err := p.GetActivePlayerName()
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
-		if newActivePlayer != activePlayer && activePlayer != "" {
+		if newActivePlayer != activePlayer  {
 			log.Printf("Active player changed to %s", newActivePlayer)
 			messageTextBuf := bytes.NewBuffer([]byte{})
 			login, ok := config.LoginConfig[strings.TrimSpace(strings.ToLower(newActivePlayer))]
@@ -126,7 +126,7 @@ func main() {
 					Name:          newActivePlayer,
 				})
 			if err != nil {
-				log.Fatal(err)
+				log.Print(err)
 			}
 			_, err = tgbot.Send(chat, messageTextBuf.String(), &tele.SendOptions{
 				ParseMode: tele.ModeHTML,
