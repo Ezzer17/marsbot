@@ -85,7 +85,7 @@ func (p *Poller) getGameState(marsGame MarsGame) (*gameState, error) {
 		}
 		return state, nil
 	}
-	if game.Game.Phase == "researching" {
+	if game.Game.Phase == "research" {
 		if len(researchingPlayers) == 1 {
 			state.waitingForPlayer = researchingPlayers[0]
 		}
@@ -129,6 +129,7 @@ func (p *Poller) WatchUrl(game MarsGame) {
 		return
 	}
 	activePlayer := gameState.waitingForPlayer
+	log.Printf("Game ID %d: active player: %s", game.ID, activePlayer)
 	res := p.db.Save(game)
 	if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
 		log.Printf("Faied to save game: %s", res.Error)
