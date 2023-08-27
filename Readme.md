@@ -19,14 +19,23 @@ Run it:
 ./marsbot -config config.yaml
 ```
 
-After that, add the bot to a group chat as administrator or write it directly.
 To start monitoring a new game, use command:
 
 ```
-/watch@mars_bot https://rebalanced-mars.herokuapp.com/spectator?id=se4369075767e
+/subscribe https://rebalanced-mars.herokuapp.com/player?id=pe4369075767e
 ```
 
-Use spectator link (not a player link)
+To list subscriptions, use command:
+
+```
+/subscriptions
+```
+
+To unsubscribe, use command:
+
+```
+/unsubscribe pe4369075767e
+```
 
 # Configuration
 
