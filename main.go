@@ -12,7 +12,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/ezzer17/marsbot/marsapi"
 )
@@ -57,9 +56,7 @@ func main() {
 
 	parser := marsapi.NewParser(config.DomainWhitelist)
 
-	db, err := gorm.Open(sqlite.Open(config.Database), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
+	db, err := gorm.Open(sqlite.Open(config.Database), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
