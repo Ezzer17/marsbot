@@ -24,7 +24,7 @@ type gameState struct {
 	activePlayer string
 }
 
-func (p *Poller) getGameState(marsGame *MarsGame) (*gameState, error) {
+func (p *Poller) getGameState(marsGame MarsGame) (*gameState, error) {
 	type Player struct {
 		ID              string `json:"id"`
 		IsActive        bool   `json:"isActive"`
@@ -107,7 +107,7 @@ func (p *Poller) WatchAll() (int, error) {
 		return 0, res.Error
 	}
 	for _, game := range games {
-		go p.WatchUrl(&game)
+		go p.WatchUrl(game)
 	}
 	return len(games), nil
 }
@@ -121,7 +121,7 @@ func (p *Poller) Reply(chatId int64, msg string) {
 	}
 }
 
-func (p *Poller) WatchUrl(game *MarsGame) {
+func (p *Poller) WatchUrl(game MarsGame) {
 	log.Printf("Watching %s", game.SpectatorAPIURL())
 	gameState, err := p.getGameState(game)
 	if err != nil {

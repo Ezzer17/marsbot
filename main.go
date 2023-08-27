@@ -114,7 +114,7 @@ func main() {
 		if err != nil {
 			return ctx.Reply(fmt.Sprintf("Invalid url: %s", payload))
 		}
-		game := &MarsGame{
+		game := MarsGame{
 			Proto:       marsUrl.Proto,
 			MarsDomain:  marsUrl.MarsDomain,
 			SpectatorID: marsUrl.SpectatorID,
