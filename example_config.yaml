@@ -1,6 +1,4 @@
 token: <token>
-login_config:
-  <game_name>: <login>
 database: ./db.sqlite
 allowed_domains:
   - rebalanced-mars.herokuapp.com

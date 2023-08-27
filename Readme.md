@@ -32,8 +32,6 @@ Use spectator link (not a player link)
 
 ```yaml
 token: <token> # telegram bot token
-login_config: # map of mars names to telegram logins (for pings)
-  <game_name>: <login>
 database: ./db.sqlite # database file
 allowed_domains: # list of allowed mars game domains
   - rebalanced-mars.herokuapp.com
