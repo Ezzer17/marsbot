@@ -3,69 +3,49 @@ package main
 import (
 	"bytes"
 	_ "embed"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	tele "gopkg.in/telebot.v3"
 	"gopkg.in/yaml.v3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 //go:embed message_template.tpl
 var messageTemplateString string
 
-type Poller struct {
-	client  *http.Client
-	gameURL string
-}
+var messageTemplate *template.Template
+var loginConfig map[string]string
 
 type Config struct {
 	Token       string            `yaml:"token"`
-	ChatID      int64             `yaml:"chat_id"`
-	GameURL     string            `yaml:"game_url"`
+	Database    string            `yaml:"database"`
 	LoginConfig map[string]string `yaml:"login_config"`
 }
 
-func (p *Poller) GetActivePlayerName() (string, error) {
-	type Player struct {
-		ID       string `json:"id"`
-		IsActive bool   `json:"isActive"`
-		Name     string `json:"name"`
-	}
-	type Game struct {
-		ActivePlayer string   `json:"activePlayer"`
-		Players      []Player `json:"players"`
-	}
-	res, err := p.client.Get(p.gameURL)
-
+func ParseMarsURL(rawURL string) (*MarsUrl, error) {
+	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get active player name: %s", res.Status)
+	gameIDs, ok := parsedURL.Query()["id"]
+	if !ok || len(gameIDs) == 0 {
+		return nil, fmt.Errorf("Player ID is missing in URL")
 	}
-
-	var game Game
-	if err := json.NewDecoder(res.Body).Decode(&game); err != nil {
-		return "", err
-	}
-
-	for _, player := range game.Players {
-		if player.IsActive {
-			return player.Name, nil
-		}
-	}
-	return "", fmt.Errorf("failed to find player by id")
-
+	return &MarsUrl{
+		Proto:       parsedURL.Scheme,
+		MarsDomain:  parsedURL.Host,
+		SpectatorID: gameIDs[0],
+	}, nil
 }
+
 func main() {
 
 	configFile := flag.String("config", "config.yaml", "config file")
@@ -83,60 +63,59 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	loginConfig = config.LoginConfig
 
-	p := Poller{
-		client:  &http.Client{Timeout: 10 * time.Second},
-		gameURL: config.GameURL,
+	db, err := gorm.Open(sqlite.Open(config.Database), &gorm.Config{})
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	messageTemplate, err := template.New("").Parse(messageTemplateString)
+	err = db.AutoMigrate(&MarsGame{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	messageTemplate, _ = template.New("").Parse(messageTemplateString)
 	tgbot, err := tele.NewBot(tele.Settings{
 		Token: config.Token,
 	})
 	if err != nil {
+		log.Printf("Message send failed; %v", err)
+	}
+	if err != nil {
 		log.Fatal(err)
 	}
-	chat := tele.ChatID(config.ChatID)
-
-	activePlayer := ""
-
-	for range time.Tick(time.Second) {
-		newActivePlayer, err := p.GetActivePlayerName()
-		if err != nil {
-			log.Print(err)
-		}
-		if newActivePlayer != activePlayer  {
-			log.Printf("Active player changed to %s", newActivePlayer)
-			messageTextBuf := bytes.NewBuffer([]byte{})
-			login, ok := config.LoginConfig[strings.TrimSpace(strings.ToLower(newActivePlayer))]
-			if !ok {
-				log.Printf("Unknown name %s", newActivePlayer)
-			}
-			err := messageTemplate.Execute(
-				messageTextBuf,
-				struct {
-					TelegramLogin string
-					Name          string
-				}{
-					TelegramLogin: login,
-					Name:          newActivePlayer,
-				})
-			if err != nil {
-				log.Print(err)
-			}
-			_, err = tgbot.Send(chat, messageTextBuf.String(), &tele.SendOptions{
-				ParseMode: tele.ModeHTML,
-			})
-			if err != nil {
-				log.Printf("Message send failed; %v", err)
-			}
-			activePlayer = newActivePlayer
-		}
-
+	p := Poller{
+		client: &http.Client{Timeout: 10 * time.Second},
+		bot:    tgbot,
+		db:     db,
 	}
+
+	gamesNumber, err := p.WatchAll()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Bot started! Watching %d games", gamesNumber)
+	tgbot.Handle("/watch", func(ctx tele.Context) error {
+		payload := ctx.Message().Payload
+		marsUrl, err := ParseMarsURL(payload)
+		if err != nil {
+			return ctx.Reply(fmt.Sprintf("Invalid url: %s", payload))
+		}
+		game := &MarsGame{
+			Proto:       marsUrl.Proto,
+			MarsDomain:  marsUrl.MarsDomain,
+			SpectatorID: marsUrl.SpectatorID,
+			ChatID:      ctx.Chat().ID,
+		}
+		res := db.Save(game)
+		if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
+			return res.Error
+		}
+
+		go p.WatchUrl(game)
+		return ctx.Reply(fmt.Sprintf("Started watching url `%s`!", game.SpectatorAPIURL()), tele.ModeMarkdown)
+
+	})
+	tgbot.Start()
 
 }
