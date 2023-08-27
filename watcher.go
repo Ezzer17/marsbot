@@ -152,15 +152,15 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			log.Printf("Faied to get new active player: %s", err)
 			continue
 		}
-		if waitedPlayer != newGameState.waitedPlayer && newGameState.waitedPlayer != "" {
+		if waitedPlayer != newGameState.waitedPlayer && newGameState.waitedPlayer != "" && waitedPlayer != "" {
 			log.Printf("Active player changed to %s", newGameState.waitedPlayer)
 			subscribers := []Subscriber{}
 			p.db.Where(&Subscriber{MarsGameID: game.ID, Name: newGameState.waitedPlayer}).Find(&subscribers)
 			for _, subscriber := range subscribers {
 				p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn!", subscriber.Name))
 			}
-			waitedPlayer = newGameState.waitedPlayer
 		}
+		waitedPlayer = newGameState.waitedPlayer
 		if newGameState.isFinished {
 			log.Printf("Game %d finished", game.ID)
 			subscribers := []Subscriber{}
