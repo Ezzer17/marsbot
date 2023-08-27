@@ -20,8 +20,8 @@ type Poller struct {
 }
 
 type gameState struct {
-	isFinished   bool
-	activePlayer string
+	isFinished       bool
+	waitingForPlayer string
 }
 
 func (p *Poller) getGameState(marsGame MarsGame) (*gameState, error) {
@@ -70,32 +70,31 @@ func (p *Poller) getGameState(marsGame MarsGame) (*gameState, error) {
 			researchingPlayers = append(researchingPlayers, player.Name)
 		}
 	}
+	state := &gameState{
+		isFinished:       false,
+		waitingForPlayer: "",
+	}
 	if game.Game.Phase == "end" {
-		return &gameState{
-			isFinished:   true,
-			activePlayer: "",
-		}, nil
+		state.isFinished = true
+		return state, nil
 	}
 
-	if len(draftingPlayers) == 1 {
-		return &gameState{
-			activePlayer: draftingPlayers[0],
-			isFinished:   false,
-		}, nil
+	if game.Game.Phase == "drafting" {
+		if len(draftingPlayers) == 1 {
+			state.waitingForPlayer = draftingPlayers[0]
+		}
+		return state, nil
 	}
-	if len(researchingPlayers) == 1 {
-		return &gameState{
-			activePlayer: researchingPlayers[0],
-			isFinished:   false,
-		}, nil
+	if game.Game.Phase == "researching" {
+		if len(researchingPlayers) == 1 {
+			state.waitingForPlayer = researchingPlayers[0]
+		}
+		return state, nil
 	}
-	if len(activePlayers) != 0 {
-		return &gameState{
-			activePlayer: activePlayers[0],
-			isFinished:   false,
-		}, nil
+	if len(activePlayers) == 1 {
+		state.waitingForPlayer = activePlayers[0]
 	}
-	return nil, fmt.Errorf("failed to find active player")
+	return state, nil
 
 }
 
@@ -129,13 +128,12 @@ func (p *Poller) WatchUrl(game MarsGame) {
 		p.Reply(game.ChatID, fmt.Sprintf("Failed to watch url `%s`: %s", game.SpectatorAPIURL(), err))
 		return
 	}
-	activePlayer := gameState.activePlayer
+	activePlayer := gameState.waitingForPlayer
 	res := p.db.Save(game)
 	if res.Error != nil && res.Error != gorm.ErrRecordNotFound {
 		log.Printf("Faied to save game: %s", res.Error)
 		p.Reply(game.ChatID, fmt.Sprintf("Failed to save game `%s`: %s", game.SpectatorAPIURL(), err))
 	}
-	p.Reply(game.ChatID, fmt.Sprintf("Started watching game `%d`", game.ID))
 
 	for range time.Tick(time.Second) {
 		newGameState, err := p.getGameState(game)
@@ -143,12 +141,12 @@ func (p *Poller) WatchUrl(game MarsGame) {
 			log.Printf("Faied to get new active player: %s", err)
 			continue
 		}
-		if activePlayer != newGameState.activePlayer {
-			log.Printf("Active player changed to %s", newGameState.activePlayer)
+		if activePlayer != newGameState.waitingForPlayer && newGameState.waitingForPlayer != "" {
+			log.Printf("Active player changed to %s", newGameState.waitingForPlayer)
 			messageTextBuf := bytes.NewBuffer([]byte{})
-			login, ok := loginConfig[strings.TrimSpace(strings.ToLower(newGameState.activePlayer))]
+			login, ok := loginConfig[strings.TrimSpace(strings.ToLower(newGameState.waitingForPlayer))]
 			if !ok {
-				log.Printf("Error: unknown name %s", newGameState.activePlayer)
+				log.Printf("Error: unknown name %s", newGameState.waitingForPlayer)
 			}
 			messageTemplate.Execute(
 				messageTextBuf,
@@ -157,7 +155,7 @@ func (p *Poller) WatchUrl(game MarsGame) {
 					Name          string
 				}{
 					TelegramLogin: login,
-					Name:          newGameState.activePlayer,
+					Name:          newGameState.waitingForPlayer,
 				})
 			_, err = p.bot.Send(tele.ChatID(game.ChatID), messageTextBuf.String(), &tele.SendOptions{
 				ParseMode: tele.ModeHTML,
@@ -165,7 +163,7 @@ func (p *Poller) WatchUrl(game MarsGame) {
 			if err != nil {
 				log.Printf("Message send failed; %v", err)
 			}
-			activePlayer = newGameState.activePlayer
+			activePlayer = newGameState.waitingForPlayer
 		}
 		if gameState.isFinished {
 			log.Printf("Finished %d", game.ID)
