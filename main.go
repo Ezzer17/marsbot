@@ -95,6 +95,7 @@ func main() {
 		if err != nil {
 			return ctx.Reply(fmt.Sprintf("Failed to subscribe: `%s`", err), tele.ModeMarkdown)
 		}
+		log.Printf("Successfullty subscribed player %s to game %d!", subscriber.Name, subscriber.MarsGameID)
 		return ctx.Reply(fmt.Sprintf("Successfullty subscribed player %s to game %d!", subscriber.Name, subscriber.MarsGameID))
 	})
 	tgbot.Handle("/subscriptions", func(ctx tele.Context) error {
@@ -118,7 +119,8 @@ func main() {
 		if err != nil {
 			return ctx.Reply(fmt.Sprintf("Failed to delete subscription: `%s`", err), tele.ModeMarkdown)
 		}
-		return ctx.Reply(fmt.Sprintf("Successfully unsubscribed player id `%s` from game %d!", playerID, ctx.Chat().ID))
+		log.Printf("Successfullty unsubscribed player %s from chat %d!", playerID, ctx.Chat().ID)
+		return ctx.Reply(fmt.Sprintf("Successfully unsubscribed player id `%s` from chat %d!", playerID, ctx.Chat().ID))
 	})
 	tgbot.Start()
 
