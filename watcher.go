@@ -20,7 +20,7 @@ type Watcher struct {
 type gameState struct {
 	isFinished    bool
 	waitedPlayers map[string]struct{}
-	age           int
+	step          int
 }
 
 func (p *Watcher) GetSubscribers(chatID int64) ([]*Subscriber, error) {
@@ -97,7 +97,7 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	state := &gameState{
 		isFinished:    false,
 		waitedPlayers: map[string]struct{}{},
-		age:           game.Game.Age,
+		step:          game.Game.Step,
 	}
 	if game.Game.Phase == "end" {
 		state.isFinished = true
@@ -150,10 +150,10 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			continue
 		}
 
-		if newGameState.age != game.Age {
-			log.Printf("Game %d age is %d active players %v", game.ID, newGameState.age, newGameState.waitedPlayers)
+		if newGameState.step != game.Step {
+			log.Printf("Game %d step is %d active players %v", game.ID, newGameState.step, newGameState.waitedPlayers)
 			subscribers := []Subscriber{}
-			game.Age = newGameState.age
+			game.Step = newGameState.step
 			if res := p.db.Save(&game); res.Error != nil {
 				log.Printf("Faied to save game: %v", res.Error)
 			}

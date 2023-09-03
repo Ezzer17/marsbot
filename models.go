@@ -11,6 +11,7 @@ type MarsGame struct {
 	Domain      string `gorm:"index:idx_mars_game_spectator_domain,unique"`
 	SpectatorID string `gorm:"index:idx_mars_game_spectator_domain,unique"`
 	Age         int
+	Step        int
 	IsFinished  bool
 
 	Subscribers []Subscriber

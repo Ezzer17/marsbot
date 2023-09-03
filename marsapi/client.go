@@ -16,6 +16,7 @@ type Game struct {
 	Phase       string `json:"phase"`
 	SpectatorID string `json:"spectatorId"`
 	Age         int    `json:"gameAge"`
+	Step        int    `json:"step"`
 }
 type GameState struct {
 	Players    []Player `json:"players"`
