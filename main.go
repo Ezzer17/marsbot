@@ -106,7 +106,8 @@ func main() {
 		}
 		message := "Your subscriptions:\n"
 		for _, subscriber := range subscribers {
-			message += fmt.Sprintf("`%-10s`: game %02d player `%s`\n", subscriber.Name, subscriber.MarsGameID, subscriber.PlayerID)
+			url := subscriber.PlayerURL()
+			message += fmt.Sprintf("`%-10s`: game %02d %s\n", subscriber.Name, subscriber.MarsGameID, url.AsHumanLink())
 		}
 		return ctx.Reply(message, tele.ModeMarkdown)
 	})

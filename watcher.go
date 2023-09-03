@@ -25,7 +25,7 @@ type gameState struct {
 
 func (p *Watcher) GetSubscribers(chatID int64) ([]*Subscriber, error) {
 	subscribers := []*Subscriber{}
-	res := p.db.Where(&Subscriber{ChatID: chatID}).Find(&subscribers)
+	res := p.db.Where(&Subscriber{ChatID: chatID}).Joins("MarsGame").Find(&subscribers)
 	return subscribers, res.Error
 }
 func (p *Watcher) RemoveSubscription(chatID int64, playerID string) error {
@@ -153,10 +153,10 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			subscribers := []Subscriber{}
 			for player := range newGameState.waitedPlayers {
 				if _, ok := waitedPlayers[player]; !ok {
-					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Joins("MarsGame").Find(&subscribers)
+					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
 						playerURL := subscriber.PlayerURL()
-						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!\n%s", subscriber.Name, game.ID, playerURL.AsHumanLink()))
+						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!\n%s", subscriber.Name, game.ID))
 					}
 				}
 			}
