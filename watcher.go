@@ -97,6 +97,7 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	state := &gameState{
 		isFinished:    false,
 		waitedPlayers: map[string]struct{}{},
+		age:           game.Game.Age,
 	}
 	if game.Game.Phase == "end" {
 		state.isFinished = true
