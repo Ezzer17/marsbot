@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"reflect"
 	"time"
 
 	tele "gopkg.in/telebot.v3"
@@ -21,6 +20,7 @@ type Watcher struct {
 type gameState struct {
 	isFinished    bool
 	waitedPlayers map[string]struct{}
+	age           int
 }
 
 func (p *Watcher) GetSubscribers(chatID int64) ([]*Subscriber, error) {
@@ -48,6 +48,7 @@ func (p *Watcher) AddSubscription(chatId int64, marsUrl marsapi.MarsPlayerURL) (
 		Proto:       marsUrl.Proto,
 		Domain:      marsUrl.MarsDomain,
 		SpectatorID: gameState.Game.SpectatorID,
+		Age:         gameState.Game.Age,
 	}
 	res := p.db.Where(&gamePoll).First(&gamePoll)
 	if res.Error == gorm.ErrRecordNotFound {
@@ -138,7 +139,7 @@ func (p *Watcher) reply(chatId int64, msg string) {
 }
 
 func (p *Watcher) WatchGame(game MarsGame) {
-	log.Printf("Watching game %d", game.ID)
+	log.Printf("Watching game %d age %d", game.ID, game.Age)
 	waitedPlayers := map[string]struct{}{}
 
 	for range time.Tick(time.Second) {
@@ -148,14 +149,18 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			continue
 		}
 
-		if !reflect.DeepEqual(waitedPlayers, newGameState.waitedPlayers) && len(newGameState.waitedPlayers) > 0 && len(waitedPlayers) > 0 {
-			log.Printf("Active players changed to %v", newGameState.waitedPlayers)
+		if newGameState.age != game.Age {
+			log.Printf("Game %d age is %d active players %v", game.ID, newGameState.age, newGameState.waitedPlayers)
 			subscribers := []Subscriber{}
+			game.Age = newGameState.age
+			if res := p.db.Save(&game); res.Error != nil {
+				log.Printf("Faied to save game: %v", res.Error)
+			}
 			for player := range newGameState.waitedPlayers {
 				if _, ok := waitedPlayers[player]; !ok {
 					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
-						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!", subscriber.Name, game.ID))
+						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d (age %d)!", subscriber.Name, game.ID, game.Age))
 					}
 				}
 			}

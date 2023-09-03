@@ -10,6 +10,7 @@ type MarsGame struct {
 	Proto       string
 	Domain      string `gorm:"index:idx_mars_game_spectator_domain,unique"`
 	SpectatorID string `gorm:"index:idx_mars_game_spectator_domain,unique"`
+	Age         int
 	IsFinished  bool
 
 	Subscribers []Subscriber
