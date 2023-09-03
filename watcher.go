@@ -155,8 +155,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 				if _, ok := waitedPlayers[player]; !ok {
 					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
-						playerURL := subscriber.PlayerURL()
-						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!\n%s", subscriber.Name, game.ID))
+						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!", subscriber.Name, game.ID))
 					}
 				}
 			}
