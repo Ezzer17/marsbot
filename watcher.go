@@ -140,7 +140,7 @@ func (p *Watcher) reply(chatId int64, msg string) {
 }
 
 func (p *Watcher) WatchGame(game MarsGame) {
-	log.Printf("Watching game %d age %d", game.ID, game.Age)
+	log.Printf("Watching game %d step %d", game.ID, game.Step)
 	waitedPlayers := map[string]struct{}{}
 
 	for range time.Tick(time.Second) {
@@ -161,7 +161,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 				if _, ok := waitedPlayers[player]; !ok {
 					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
-						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d (age %d)!", subscriber.Name, game.ID, game.Age))
+						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!", subscriber.Name, game.ID))
 					}
 				}
 			}
