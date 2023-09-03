@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	tele "gopkg.in/telebot.v3"
@@ -18,8 +19,8 @@ type Watcher struct {
 }
 
 type gameState struct {
-	isFinished   bool
-	waitedPlayer string
+	isFinished    bool
+	waitedPlayers map[string]struct{}
 }
 
 func (p *Watcher) GetSubscribers(chatID int64) ([]*Subscriber, error) {
@@ -78,23 +79,23 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	if err != nil {
 		return nil, err
 	}
-	draftingPlayers := []string{}
-	activePlayers := []string{}
-	researchingPlayers := []string{}
+	draftingPlayers := map[string]struct{}{}
+	activePlayers := map[string]struct{}{}
+	researchingPlayers := map[string]struct{}{}
 	for _, player := range game.Players {
 		if player.IsActive {
-			activePlayers = append(activePlayers, player.Name)
+			activePlayers[player.Name] = struct{}{}
 		}
 		if player.NeedsToDraft {
-			draftingPlayers = append(draftingPlayers, player.Name)
+			draftingPlayers[player.Name] = struct{}{}
 		}
 		if player.NeedsToResearch {
-			researchingPlayers = append(researchingPlayers, player.Name)
+			researchingPlayers[player.Name] = struct{}{}
 		}
 	}
 	state := &gameState{
-		isFinished:   false,
-		waitedPlayer: "",
+		isFinished:    false,
+		waitedPlayers: map[string]struct{}{},
 	}
 	if game.Game.Phase == "end" {
 		state.isFinished = true
@@ -102,20 +103,14 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	}
 
 	if game.Game.Phase == "drafting" {
-		if len(draftingPlayers) == 1 {
-			state.waitedPlayer = draftingPlayers[0]
-		}
+		state.waitedPlayers = draftingPlayers
 		return state, nil
 	}
 	if game.Game.Phase == "research" {
-		if len(researchingPlayers) == 1 {
-			state.waitedPlayer = researchingPlayers[0]
-		}
+		state.waitedPlayers = researchingPlayers
 		return state, nil
 	}
-	if len(activePlayers) == 1 {
-		state.waitedPlayer = activePlayers[0]
-	}
+	state.waitedPlayers = activePlayers
 	return state, nil
 
 }
@@ -144,7 +139,7 @@ func (p *Watcher) reply(chatId int64, msg string) {
 
 func (p *Watcher) WatchGame(game MarsGame) {
 	log.Printf("Watching game %d", game.ID)
-	waitedPlayer := ""
+	waitedPlayers := map[string]struct{}{}
 
 	for range time.Tick(time.Second) {
 		newGameState, err := p.getGameState(game)
@@ -152,15 +147,18 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			log.Printf("Faied to get new active player: %s", err)
 			continue
 		}
-		if waitedPlayer != newGameState.waitedPlayer && newGameState.waitedPlayer != "" && waitedPlayer != "" {
-			log.Printf("Active player changed to %s", newGameState.waitedPlayer)
+
+		if !reflect.DeepEqual(waitedPlayers, newGameState.waitedPlayers) && len(newGameState.waitedPlayers) > 0 && len(waitedPlayers) > 0 {
+			log.Printf("Active players changed to %v", newGameState.waitedPlayers)
 			subscribers := []Subscriber{}
-			p.db.Where(&Subscriber{MarsGameID: game.ID, Name: newGameState.waitedPlayer}).Find(&subscribers)
-			for _, subscriber := range subscribers {
-				p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn!", subscriber.Name))
+			for player := range newGameState.waitedPlayers {
+				p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
+				for _, subscriber := range subscribers {
+					p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!", subscriber.Name, game.ID))
+				}
 			}
 		}
-		waitedPlayer = newGameState.waitedPlayer
+		waitedPlayers = newGameState.waitedPlayers
 		if newGameState.isFinished {
 			log.Printf("Game %d finished", game.ID)
 			subscribers := []Subscriber{}
