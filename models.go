@@ -32,3 +32,11 @@ type Subscriber struct {
 	MarsGameID uint
 	MarsGame   *MarsGame
 }
+
+func (s *Subscriber) PlayerURL() marsapi.MarsPlayerURL {
+	return marsapi.MarsPlayerURL{
+		Proto:         s.MarsGame.Proto,
+		MarsDomain:    s.MarsGame.Domain,
+		ParticipantID: s.PlayerID,
+	}
+}
