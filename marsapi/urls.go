@@ -20,6 +20,15 @@ func (m *MarsPlayerURL) AsString() string {
 	}
 	return url.String()
 }
+func (m *MarsPlayerURL) AsHumanLink() string {
+	url := url.URL{
+		Scheme:   m.Proto,
+		Host:     m.MarsDomain,
+		Path:     "/player",
+		RawQuery: "id=" + m.ParticipantID,
+	}
+	return url.String()
+}
 
 type MarsSpectatorURL MarsUrl
 

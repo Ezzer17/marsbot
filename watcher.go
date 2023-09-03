@@ -156,7 +156,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Joins("MarsGame").Find(&subscribers)
 					for _, subscriber := range subscribers {
 						playerURL := subscriber.PlayerURL()
-						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!\n%s", subscriber.Name, game.ID, playerURL.AsString()))
+						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!\n%s", subscriber.Name, game.ID, playerURL.AsHumanLink()))
 					}
 				}
 			}
