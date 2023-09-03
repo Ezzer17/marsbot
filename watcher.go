@@ -48,7 +48,6 @@ func (p *Watcher) AddSubscription(chatId int64, marsUrl marsapi.MarsPlayerURL) (
 		Proto:       marsUrl.Proto,
 		Domain:      marsUrl.MarsDomain,
 		SpectatorID: gameState.Game.SpectatorID,
-		Age:         gameState.Game.Age,
 	}
 	res := p.db.Where(&gamePoll).First(&gamePoll)
 	if res.Error == gorm.ErrRecordNotFound {
