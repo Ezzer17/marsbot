@@ -82,6 +82,7 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	draftingPlayers := map[string]struct{}{}
 	activePlayers := map[string]struct{}{}
 	researchingPlayers := map[string]struct{}{}
+	runningTimerPlayers := map[string]struct{}{}
 	for _, player := range game.Players {
 		if player.IsActive {
 			activePlayers[player.Name] = struct{}{}
@@ -91,6 +92,9 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 		}
 		if player.NeedsToResearch {
 			researchingPlayers[player.Name] = struct{}{}
+		}
+		if player.Timer.IsRunning {
+			runningTimerPlayers[player.Name] = struct{}{}
 		}
 	}
 	state := &gameState{
@@ -109,6 +113,10 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	}
 	if game.Game.Phase == "research" {
 		state.waitedPlayers = researchingPlayers
+		return state, nil
+	}
+	if game.Game.Phase == "solar" {
+		state.waitedPlayers = runningTimerPlayers
 		return state, nil
 	}
 	state.waitedPlayers = activePlayers

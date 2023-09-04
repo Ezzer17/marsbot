@@ -6,11 +6,15 @@ import (
 	"net/http"
 )
 
+type Timer struct {
+	IsRunning bool `json:"running"`
+}
 type Player struct {
 	IsActive        bool   `json:"isActive"`
 	NeedsToDraft    bool   `json:"needsToDraft"`
 	NeedsToResearch bool   `json:"needsToResearch"`
 	Name            string `json:"name"`
+	Timer           Timer  `json:"timer"`
 }
 type Game struct {
 	Phase       string `json:"phase"`
