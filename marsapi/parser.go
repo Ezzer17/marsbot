@@ -6,8 +6,8 @@ import (
 	"regexp"
 )
 
-var spectatorIdRegex = regexp.MustCompile(`^s[a-f0-9]{12}$`)
-var playerIdRegex = regexp.MustCompile(`^p[a-f0-9]{11-12}$`)
+var spectatorIdRegex = regexp.MustCompile(`^s[a-f0-9]+$`)
+var playerIdRegex = regexp.MustCompile(`^p[a-f0-9]+$`)
 
 type Parser struct {
 	allowedDomains []string
