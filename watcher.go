@@ -163,12 +163,13 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			log.Printf("Game %d step is %d active players %v", game.ID, newGameState.step, newGameState.waitedPlayers)
 			subscribers := []Subscriber{}
 			game.Step = newGameState.step
+			game.UpdatedAt = time.Now()
 			if res := p.db.Save(&game); res.Error != nil {
 				log.Printf("Faied to save game: %v", res.Error)
 			}
 			for player := range newGameState.waitedPlayers {
 				if _, ok := waitedPlayers[player]; !ok {
-					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
+					p.db.Preload("MarsGame").Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
 						playerURL := subscriber.PlayerURL()
 						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in [game %d](%s)!", subscriber.Name, game.ID, playerURL.AsHumanLink()))
@@ -180,7 +181,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 		if newGameState.isFinished {
 			log.Printf("Game %d finished", game.ID)
 			subscribers := []Subscriber{}
-			p.db.Where(&Subscriber{MarsGameID: game.ID}).Find(&subscribers)
+			p.db.Preload("MarsGame").Where(&Subscriber{MarsGameID: game.ID}).Find(&subscribers)
 			for _, subscriber := range subscribers {
 				playerURL := subscriber.PlayerURL()
 				p.reply(subscriber.ChatID, fmt.Sprintf("Game [%d](%s) finished!!", game.ID, playerURL.AsHumanLink()))
@@ -196,7 +197,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 
 			subscribers := []Subscriber{}
 			for player := range waitedPlayers {
-				p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
+				p.db.Preload("MarsGame").Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 				for _, subscriber := range subscribers {
 					playerURL := subscriber.PlayerURL()
 					p.reply(subscriber.ChatID, fmt.Sprintf("%s, ты ходишь уже больше суток в [игре %d](%s)!!!", subscriber.Name, game.ID, playerURL.AsHumanLink()))
