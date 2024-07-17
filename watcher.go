@@ -11,6 +11,8 @@ import (
 	"github.com/ezzer17/marsbot/marsapi"
 )
 
+const pingInterval = 24 * time.Hour
+
 type Watcher struct {
 	client *marsapi.Client
 	bot    *tele.Bot
@@ -35,7 +37,7 @@ func (p *Watcher) RemoveSubscription(chatID int64, playerID string) error {
 		return res.Error
 	}
 	if res.RowsAffected == 0 {
-		return fmt.Errorf("Subscription not found")
+		return fmt.Errorf("subscription not found")
 	}
 	return nil
 }
@@ -59,7 +61,7 @@ func (p *Watcher) AddSubscription(chatId int64, marsUrl marsapi.MarsPlayerURL) (
 		return nil, res.Error
 	}
 	if gamePoll.IsFinished {
-		return nil, fmt.Errorf("Game %d finished", gamePoll.ID)
+		return nil, fmt.Errorf("game %d finished", gamePoll.ID)
 	}
 	subscription := &Subscriber{
 		PlayerID: marsUrl.ParticipantID,
@@ -168,7 +170,8 @@ func (p *Watcher) WatchGame(game MarsGame) {
 				if _, ok := waitedPlayers[player]; !ok {
 					p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
-						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in game %d!", subscriber.Name, game.ID))
+						playerURL := subscriber.PlayerURL()
+						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in [game %d](%s)!", subscriber.Name, game.ID, playerURL.AsHumanLink()))
 					}
 				}
 			}
@@ -179,13 +182,30 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			subscribers := []Subscriber{}
 			p.db.Where(&Subscriber{MarsGameID: game.ID}).Find(&subscribers)
 			for _, subscriber := range subscribers {
-				p.reply(subscriber.ChatID, fmt.Sprintf("Game %d finished!!", game.ID))
+				playerURL := subscriber.PlayerURL()
+				p.reply(subscriber.ChatID, fmt.Sprintf("Game [%d](%s) finished!!", game.ID, playerURL.AsHumanLink()))
 			}
 			game.IsFinished = true
 			if res := p.db.Save(&game); res.Error != nil {
 				log.Printf("Faied to save finished game: %v", res.Error)
 			}
 			break
+		}
+
+		if game.UpdatedAt.Before(time.Now().Add(-1*pingInterval)) && len(waitedPlayers) > 0 {
+
+			subscribers := []Subscriber{}
+			for player := range waitedPlayers {
+				p.db.Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
+				for _, subscriber := range subscribers {
+					playerURL := subscriber.PlayerURL()
+					p.reply(subscriber.ChatID, fmt.Sprintf("%s, ты ходишь уже больше суток в [игре %d](%s)!!!", subscriber.Name, game.ID, playerURL.AsHumanLink()))
+				}
+			}
+			game.UpdatedAt = time.Now()
+			if res := p.db.Save(&game); res.Error != nil {
+				log.Printf("Faied to save game: %v", res.Error)
+			}
 		}
 
 	}
