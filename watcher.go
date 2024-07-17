@@ -11,7 +11,7 @@ import (
 	"github.com/ezzer17/marsbot/marsapi"
 )
 
-const pingInterval = 24 * time.Hour
+const pingInterval = 12 * time.Hour
 
 type Watcher struct {
 	client *marsapi.Client
@@ -200,7 +200,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 				p.db.Preload("MarsGame").Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 				for _, subscriber := range subscribers {
 					playerURL := subscriber.PlayerURL()
-					p.reply(subscriber.ChatID, fmt.Sprintf("%s, ты ходишь уже больше суток в [игре %d](%s)!!!", subscriber.Name, game.ID, playerURL.AsHumanLink()))
+					p.reply(subscriber.ChatID, fmt.Sprintf("%s, ты ходишь уже больше 12 часов в [игре %d](%s)!!!", subscriber.Name, game.ID, playerURL.AsHumanLink()))
 				}
 			}
 			game.UpdatedAt = time.Now()
