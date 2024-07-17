@@ -106,6 +106,9 @@ func main() {
 		}
 		message := "Your subscriptions:\n"
 		for _, subscriber := range subscribers {
+			if subscriber.MarsGame.IsFinished {
+				continue
+			}
 			url := subscriber.PlayerURL()
 			message += fmt.Sprintf("`%-10s`: game %02d %s\n", subscriber.Name, subscriber.MarsGameID, url.AsHumanLink())
 		}
