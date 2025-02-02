@@ -1,0 +1,17 @@
+{
+    "scripts": {
+        "dokku": {
+            "predeploy": "echo $CONFIG|base64 -d > config.yaml"
+        }
+    },
+    "formation": {
+        "web": {
+            "max_parallel": 0,
+            "quantity": 0
+        },
+        "worker": {
+            "max_parallel": 1,
+            "quantity": 1
+        }
+    }
+}

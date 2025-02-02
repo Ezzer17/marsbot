@@ -1,0 +1,1 @@
+worker: /marsbot -config /config.yaml
