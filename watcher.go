@@ -177,7 +177,10 @@ func (p *Watcher) WatchGame(game MarsGame) {
 				}
 			}
 		}
-		waitedPlayers = newGameState.waitedPlayers
+		waitedPlayers = make(map[string]struct{})
+		for player := range newGameState.waitedPlayers {
+			waitedPlayers[player] = struct{}{}
+		}
 		if newGameState.isFinished {
 			log.Printf("Game %d finished", game.ID)
 			subscribers := []Subscriber{}
