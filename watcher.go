@@ -21,7 +21,7 @@ type Watcher struct {
 
 type gameState struct {
 	isFinished    bool
-	waitedPlayers map[string]struct{}
+	activePlayers map[string]struct{}
 	step          int
 }
 
@@ -101,7 +101,7 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	}
 	state := &gameState{
 		isFinished:    false,
-		waitedPlayers: map[string]struct{}{},
+		activePlayers: map[string]struct{}{},
 		step:          game.Game.Step,
 	}
 	if game.Game.Phase == "end" {
@@ -110,18 +110,18 @@ func (p *Watcher) getGameState(marsGame MarsGame) (*gameState, error) {
 	}
 
 	if game.Game.Phase == "drafting" {
-		state.waitedPlayers = draftingPlayers
+		state.activePlayers = draftingPlayers
 		return state, nil
 	}
 	if game.Game.Phase == "research" {
-		state.waitedPlayers = researchingPlayers
+		state.activePlayers = researchingPlayers
 		return state, nil
 	}
 	if game.Game.Phase == "solar" {
-		state.waitedPlayers = runningTimerPlayers
+		state.activePlayers = runningTimerPlayers
 		return state, nil
 	}
-	state.waitedPlayers = activePlayers
+	state.activePlayers = activePlayers
 	return state, nil
 
 }
@@ -150,7 +150,7 @@ func (p *Watcher) reply(chatId int64, msg string) {
 
 func (p *Watcher) WatchGame(game MarsGame) {
 	log.Printf("Watching game %d step %d", game.ID, game.Step)
-	waitedPlayers := map[string]struct{}{}
+	activePlayers := map[string]struct{}{}
 
 	for range time.Tick(time.Second) {
 		newGameState, err := p.getGameState(game)
@@ -160,15 +160,15 @@ func (p *Watcher) WatchGame(game MarsGame) {
 		}
 
 		if newGameState.step != game.Step {
-			log.Printf("Game %d step is %d active players %v", game.ID, newGameState.step, newGameState.waitedPlayers)
+			log.Printf("Game %d step is %d active players %v", game.ID, newGameState.step, newGameState.activePlayers)
 			subscribers := []Subscriber{}
 			game.Step = newGameState.step
 			game.UpdatedAt = time.Now()
 			if res := p.db.Save(&game); res.Error != nil {
 				log.Printf("Faied to save game: %v", res.Error)
 			}
-			for player := range newGameState.waitedPlayers {
-				if _, ok := waitedPlayers[player]; !ok {
+			for player := range newGameState.activePlayers {
+				if _, ok := activePlayers[player]; !ok {
 					p.db.Preload("MarsGame").Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
 						playerURL := subscriber.PlayerURL()
@@ -176,10 +176,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 					}
 				}
 			}
-		}
-		waitedPlayers = make(map[string]struct{})
-		for player := range newGameState.waitedPlayers {
-			waitedPlayers[player] = struct{}{}
+			activePlayers = newGameState.activePlayers
 		}
 		if newGameState.isFinished {
 			log.Printf("Game %d finished", game.ID)
@@ -196,10 +193,10 @@ func (p *Watcher) WatchGame(game MarsGame) {
 			break
 		}
 
-		if game.UpdatedAt.Before(time.Now().Add(-1*pingInterval)) && len(waitedPlayers) > 0 {
+		if game.UpdatedAt.Before(time.Now().Add(-1*pingInterval)) && len(activePlayers) > 0 {
 
 			subscribers := []Subscriber{}
-			for player := range waitedPlayers {
+			for player := range activePlayers {
 				p.db.Preload("MarsGame").Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 				for _, subscriber := range subscribers {
 					playerURL := subscriber.PlayerURL()
