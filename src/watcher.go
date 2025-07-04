@@ -171,6 +171,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 				if _, ok := waitedPlayers[player]; !ok {
 					p.db.Preload("MarsGame").Where(&Subscriber{MarsGameID: game.ID, Name: player}).Find(&subscribers)
 					for _, subscriber := range subscribers {
+						log.Printf("Sending message to %s for game %d", subscriber.Name, game.ID)
 						playerURL := subscriber.PlayerURL()
 						p.reply(subscriber.ChatID, fmt.Sprintf("%s, your turn in [game %d](%s)!", subscriber.Name, game.ID, playerURL.AsHumanLink()))
 					}
