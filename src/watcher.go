@@ -160,7 +160,7 @@ func (p *Watcher) WatchGame(game MarsGame) {
 		}
 
 		if newGameState.step != game.Step {
-			log.Printf("Game %d step is %d active players %v", game.ID, newGameState.step, newGameState.waitedPlayers)
+			log.Printf("Game %d step is %d active players %v -> %v", game.ID, newGameState.step, waitedPlayers, newGameState.waitedPlayers)
 			subscribers := []Subscriber{}
 			game.Step = newGameState.step
 			game.UpdatedAt = time.Now()
